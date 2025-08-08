@@ -1,0 +1,24 @@
+{
+    "name": "Worker",
+    "buildOptions": {
+        "emitEntryPoint": true,
+        "warningsAsErrors": true
+    },
+    "dependencies": {
+        "StackExchange.Redis": "2.6.122",
+        "Npgsql": "7.0.6",
+        "Newtonsoft.Json": "13.0.3",
+        "Microsoft.NETCore.App": {
+            "type": "platform",
+            "version": "1.0.0-rc2-3002702"
+        }
+    },
+    "frameworks": {
+        "netcoreapp1.0": { }
+    },
+    "runtimeOptions": {
+        "configProperties": {
+            "System.GC.Server": true
+        }
+    }
+}
