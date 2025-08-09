@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Test - Voting App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .cat-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        .dog-btn {
+            background: linear-gradient(135deg, #14b8a6, #0d9488);
+            color: white;
+        }
+        .info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Voting App Sound Test</h1>
+    
+    <div class="info">
+        <p><strong>Instructions:</strong> Click the buttons below to test the voting sounds.</p>
+        <p>🐱 <strong>Cat button</strong> should play a meow sound</p>
+        <p>🐶 <strong>Dog button</strong> should play a huhf sound</p>
+    </div>
+    
+    <button class="cat-btn" onclick="playCatSound()">
+        🐱 Vote for Cats (Play Meow)
+    </button>
+    
+    <button class="dog-btn" onclick="playDogSound()">
+        🐶 Vote for Dogs (Play Huhf)
+    </button>
+    
+    <audio id="catSound" preload="auto">
+        <source src="http://localhost:5000/static/audio/cat-meow.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="dogSound" preload="auto">
+        <source src="http://localhost:5000/static/audio/dog-huhf.mp3" type="audio/mpeg">
+    </audio>
+    
+    <div id="status" style="margin-top: 20px; font-weight: bold;"></div>
+    
+    <script>
+        function playCatSound() {
+            const audio = document.getElementById('catSound');
+            const status = document.getElementById('status');
+            
+            audio.currentTime = 0;
+            audio.play()
+                .then(() => {
+                    status.textContent = '🐱 Playing cat meow sound!';
+                    status.style.color = '#3b82f6';
+                })
+                .catch(e => {
+                    status.textContent = '❌ Error playing cat sound: ' + e.message;
+                    status.style.color = '#ef4444';
+                });
+        }
+        
+        function playDogSound() {
+            const audio = document.getElementById('dogSound');
+            const status = document.getElementById('status');
+            
+            audio.currentTime = 0;
+            audio.play()
+                .then(() => {
+                    status.textContent = '🐶 Playing dog huhf sound!';
+                    status.style.color = '#14b8a6';
+                })
+                .catch(e => {
+                    status.textContent = '❌ Error playing dog sound: ' + e.message;
+                    status.style.color = '#ef4444';
+                });
+        }
+        
+        // Test audio loading on page load
+        window.addEventListener('load', () => {
+            const catAudio = document.getElementById('catSound');
+            const dogAudio = document.getElementById('dogSound');
+            
+            catAudio.addEventListener('canplaythrough', () => {
+                console.log('✅ Cat meow sound loaded successfully');
+            });
+            
+            dogAudio.addEventListener('canplaythrough', () => {
+                console.log('✅ Dog huhf sound loaded successfully');
+            });
+            
+            catAudio.addEventListener('error', (e) => {
+                console.error('❌ Error loading cat sound:', e);
+            });
+            
+            dogAudio.addEventListener('error', (e) => {
+                console.error('❌ Error loading dog sound:', e);
+            });
+        });
+    </script>
+</body>
+</html>

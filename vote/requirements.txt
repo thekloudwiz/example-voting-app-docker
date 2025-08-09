@@ -1,3 +1,23 @@
-Flask
-Redis
-gunicorn
+# Core Flask dependencies
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Database and cache clients
+redis==4.6.0
+psycopg2-binary==2.9.7
+
+# Additional dependencies for modern features
+requests==2.31.0
+gunicorn==21.2.0
+python-dotenv==1.0.0
+
+# Security and performance
+flask-talisman==1.1.0
+flask-compress==1.13
+
+# Monitoring and logging
+flask-healthz==0.0.3
+structlog==23.1.0
+
+# Development dependencies (optional)
+flask-debugtoolbar==0.13.1

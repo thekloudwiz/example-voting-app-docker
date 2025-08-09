@@ -66,8 +66,10 @@ namespace Worker
 
             var command = connection.CreateCommand();
             command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
-                                        id VARCHAR(255) NOT NULL UNIQUE, 
-                                        vote VARCHAR(255) NOT NULL
+                                        id SERIAL PRIMARY KEY,
+                                        vote VARCHAR(255) NOT NULL,
+                                        voter_id VARCHAR(255),
+                                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                                     )";
             command.ExecuteNonQuery();
 
@@ -107,10 +109,15 @@ namespace Worker
             var command = connection.CreateCommand();
             try
             {
-                command.CommandText = "INSERT INTO votes (id, vote) VALUES (@id, @vote) ON CONFLICT (id) DO UPDATE SET vote = @vote";
-                command.Parameters.AddWithValue("@id", voterId);
+                command.CommandText = "INSERT INTO votes (vote, voter_id) VALUES (@vote, @voter_id)";
                 command.Parameters.AddWithValue("@vote", vote);
+                command.Parameters.AddWithValue("@voter_id", voterId);
                 command.ExecuteNonQuery();
+                Console.WriteLine($"Successfully inserted vote: {vote} from {voterId}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error inserting vote: {ex.Message}");
             }
             finally
             {

@@ -1,49 +1,521 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en" data-theme="light">
+<head>
     <meta charset="utf-8">
-    <title>{{option_a}} vs {{option_b}}!</title>
-    <base href="/index.html">
-    <meta name = "viewport" content = "width=device-width, initial-scale = 1.0">
-    <meta name="keywords" content="docker-compose, docker, stack">
-    <meta name="author" content="Tutum dev team">
-    <link rel='stylesheet' href="{{ url_for('static',filename='stylesheets/style.css') }}" />
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
-  </head>
-  <body>
-    <div id="content-container">
-      <div id="content-container-center">
-        <h3>{{option_a}} vs {{option_b}}!</h3>
-        <form id="choice" name='form' method="POST" action="/">
-          <button id="a" type="submit" name="vote" class="a" value="a">{{option_a}}</button>
-          <button id="b" type="submit" name="vote" class="b" value="b">{{option_b}}</button>
-        </form>
-        <div id="tip">
-          (Tip: you can change your vote)
-        </div>
-        <div id="hostname">
-          Processed by container ID {{hostname}}
-        </div>
-      </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Modern voting application - {{option_a}} vs {{option_b}}">
+    <meta name="keywords" content="voting, poll, docker, modern ui">
+    <meta name="author" content="Modern Voting App">
+    
+    <title>{{option_a}} vs {{option_b}} - Modern Voting App</title>
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Modern Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/modern-style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/voting-interface.css') }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗳️</text></svg>">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Voting App">
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="vote-progress" id="progressBar">
+        <div class="vote-progress-bar" id="progressBarFill"></div>
     </div>
-    <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
 
-    {% if vote %}
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+        <i class="fas fa-moon" id="themeIcon"></i>
+    </button>
+
+    <!-- Sound Toggle -->
+    <button class="sound-toggle" id="soundToggle" aria-label="Toggle sound effects">
+        <i class="fas fa-volume-up" id="soundIcon"></i>
+    </button>
+
+    <!-- Main Application -->
+    <main class="voting-app" role="main">
+        <div class="voting-container">
+            <!-- Header -->
+            <header class="voting-header">
+                <h1 class="voting-title" id="voting-title">{{option_a}} vs {{option_b}}</h1>
+                <p class="voting-subtitle">Cast your vote and see real-time results</p>
+            </header>
+
+            <!-- Voting Form -->
+            <section class="voting-section">
+                <form id="votingForm" method="POST" action="/" class="voting-form" novalidate>
+                    <fieldset class="voting-options" aria-labelledby="voting-title">
+                        <legend class="sr-only">Choose your vote</legend>
+                        <button 
+                            type="submit" 
+                            name="vote" 
+                            value="a" 
+                            class="vote-option btn-primary" 
+                            id="optionA"
+                            aria-describedby="vote-tip"
+                            {% if vote == 'a' %}disabled{% endif %}
+                        >
+                            <span class="vote-option-icon">
+                                <i class="fas fa-cat" aria-hidden="true"></i>
+                            </span>
+                            <span class="vote-option-text">{{option_a}}</span>
+                        </button>
+                        
+                        <button 
+                            type="submit" 
+                            name="vote" 
+                            value="b" 
+                            class="vote-option btn-secondary" 
+                            id="optionB"
+                            aria-describedby="vote-tip"
+                            {% if vote == 'b' %}disabled{% endif %}
+                        >
+                            <span class="vote-option-icon">
+                                <i class="fas fa-dog" aria-hidden="true"></i>
+                            </span>
+                            <span class="vote-option-text">{{option_b}}</span>
+                        </button>
+                    </fieldset>
+                </form>
+            </section>
+
+            <!-- Vote Status -->
+            <section class="vote-status {% if not vote %}hidden{% endif %}" id="voteStatus" role="status" aria-live="polite">
+                {% if vote %}
+                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    Your vote for <strong>{% if vote == 'a' %}{{option_a}}{% else %}{{option_b}}{% endif %}</strong> has been recorded!
+                {% endif %}
+            </section>
+
+            <!-- Tip -->
+            <aside class="voting-tip" id="vote-tip">
+                <i class="fas fa-info-circle" aria-hidden="true"></i>
+                Tip: You can change your vote at any time
+            </aside>
+
+            <!-- Hostname Display -->
+            <footer class="hostname-display">
+                <i class="fas fa-server" aria-hidden="true"></i>
+                Container: {{hostname}}
+            </footer>
+        </div>
+    </main>
+
+    <!-- Audio Elements for Vote Sounds -->
+    <audio id="catMeowSound" preload="auto">
+        <source src="{{ url_for('static', filename='audio/cat-meow.mp3') }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    
+    <audio id="dogHuhfSound" preload="auto">
+        <source src="{{ url_for('static', filename='audio/dog-huhf.mp3') }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    
     <script>
-      var vote = "{{vote}}";
-
-      if(vote == "a"){
-        $(".a").prop('disabled', true);
-        $(".a").html('{{option_a}} <i class="fa fa-check-circle"></i>');
-        $(".b").css('opacity','0.5');
-      }
-      if(vote == "b"){
-        $(".b").prop('disabled', true);
-        $(".b").html('{{option_b}} <i class="fa fa-check-circle"></i>');
-        $(".a").css('opacity','0.5');
-      }
+        // Modern JavaScript for enhanced functionality
+        class VotingApp {
+            constructor() {
+                this.form = document.getElementById('votingForm');
+                this.optionA = document.getElementById('optionA');
+                this.optionB = document.getElementById('optionB');
+                this.voteStatus = document.getElementById('voteStatus');
+                this.progressBar = document.getElementById('progressBarFill');
+                this.themeToggle = document.getElementById('themeToggle');
+                this.themeIcon = document.getElementById('themeIcon');
+                this.soundToggle = document.getElementById('soundToggle');
+                this.soundIcon = document.getElementById('soundIcon');
+                
+                // Audio elements
+                this.catMeowSound = document.getElementById('catMeowSound');
+                this.dogHuhfSound = document.getElementById('dogHuhfSound');
+                
+                this.currentVote = '{{ vote }}';
+                this.isSubmitting = false;
+                this.soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // Default to true
+                
+                // Sound throttling to prevent rapid-fire sounds on hover
+                this.lastSoundTime = { a: 0, b: 0 };
+                this.soundCooldown = 1000; // 1 second cooldown between sounds
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.setupThemeToggle();
+                this.setupSoundToggle();
+                this.updateVoteState();
+                this.setupAccessibility();
+                this.setupAnimations();
+                this.setupAudio();
+            }
+            
+            setupEventListeners() {
+                // Form submission with enhanced UX
+                this.form.addEventListener('submit', (e) => this.handleVoteSubmission(e));
+                
+                // Button hover effects with sound
+                this.optionA.addEventListener('mouseenter', () => {
+                    this.handleButtonHover(this.optionA);
+                    this.playVoteSound('a'); // Play cat sound on hover
+                });
+                
+                this.optionB.addEventListener('mouseenter', () => {
+                    this.handleButtonHover(this.optionB);
+                    this.playVoteSound('b'); // Play dog sound on hover
+                });
+                
+                this.optionA.addEventListener('mouseleave', () => this.handleButtonLeave(this.optionA));
+                this.optionB.addEventListener('mouseleave', () => this.handleButtonLeave(this.optionB));
+                
+                // Touch support for mobile devices
+                this.optionA.addEventListener('touchstart', () => {
+                    this.handleButtonHover(this.optionA);
+                    this.playVoteSound('a'); // Play cat sound on touch
+                }, { passive: true });
+                
+                this.optionB.addEventListener('touchstart', () => {
+                    this.handleButtonHover(this.optionB);
+                    this.playVoteSound('b'); // Play dog sound on touch
+                }, { passive: true });
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => this.handleKeyboardNavigation(e));
+            }
+            
+            setupThemeToggle() {
+                // Load saved theme
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                this.setTheme(savedTheme);
+                
+                // Theme toggle click handler
+                this.themeToggle.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    this.setTheme(newTheme);
+                });
+            }
+            
+            setupSoundToggle() {
+                // Update sound icon based on current state
+                this.updateSoundIcon();
+                
+                // Sound toggle click handler
+                this.soundToggle.addEventListener('click', () => {
+                    this.soundEnabled = !this.soundEnabled;
+                    localStorage.setItem('soundEnabled', this.soundEnabled);
+                    this.updateSoundIcon();
+                    
+                    // Announce sound state change for screen readers
+                    this.announceToScreenReader(`Sound effects ${this.soundEnabled ? 'enabled' : 'disabled'}`);
+                });
+            }
+            
+            updateSoundIcon() {
+                this.soundIcon.className = this.soundEnabled ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+                this.soundToggle.setAttribute('aria-label', 
+                    this.soundEnabled ? 'Disable sound effects' : 'Enable sound effects');
+            }
+            
+            handleVoteSubmission(e) {
+                if (this.isSubmitting) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                this.isSubmitting = true;
+                const clickedButton = e.submitter;
+                const voteValue = clickedButton.value;
+                
+                // Add loading state
+                clickedButton.classList.add('loading');
+                this.showProgress(30);
+                
+                // Simulate network delay for better UX
+                setTimeout(() => {
+                    this.showProgress(100);
+                    // Form will submit naturally
+                }, 300);
+            }
+            
+            updateVoteState() {
+                if (this.currentVote) {
+                    const selectedButton = this.currentVote === 'a' ? this.optionA : this.optionB;
+                    const unselectedButton = this.currentVote === 'a' ? this.optionB : this.optionA;
+                    
+                    selectedButton.classList.add('selected');
+                    unselectedButton.classList.add('unselected');
+                    
+                    // Update ARIA attributes
+                    selectedButton.setAttribute('aria-pressed', 'true');
+                    unselectedButton.setAttribute('aria-pressed', 'false');
+                    
+                    // Show vote status
+                    if (this.voteStatus) {
+                        this.voteStatus.classList.remove('hidden');
+                        this.voteStatus.style.display = 'block';
+                    }
+                    
+                    // Add success animation
+                    selectedButton.classList.add('vote-success');
+                    setTimeout(() => {
+                        selectedButton.classList.remove('vote-success');
+                    }, 2000);
+                }
+            }
+            
+            handleButtonHover(button) {
+                if (!button.disabled && !this.isSubmitting) {
+                    button.style.transform = 'translateY(-4px) scale(1.02)';
+                }
+            }
+            
+            handleButtonLeave(button) {
+                if (!button.disabled && !this.isSubmitting) {
+                    button.style.transform = '';
+                }
+            }
+            
+            handleKeyboardNavigation(e) {
+                // Space or Enter to activate focused button
+                if ((e.code === 'Space' || e.code === 'Enter') && 
+                    (e.target === this.optionA || e.target === this.optionB)) {
+                    e.preventDefault();
+                    e.target.click();
+                }
+                
+                // Arrow keys for navigation
+                if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+                    e.preventDefault();
+                    const currentFocus = document.activeElement;
+                    if (currentFocus === this.optionA) {
+                        this.optionB.focus();
+                    } else if (currentFocus === this.optionB) {
+                        this.optionA.focus();
+                    } else {
+                        this.optionA.focus();
+                    }
+                }
+            }
+            
+            showProgress(percentage) {
+                this.progressBar.style.width = `${percentage}%`;
+                
+                if (percentage === 100) {
+                    setTimeout(() => {
+                        this.progressBar.style.width = '0%';
+                    }, 500);
+                }
+            }
+            
+            setupAccessibility() {
+                // Add ARIA labels
+                this.form.setAttribute('aria-label', 'Voting form');
+                
+                // Announce vote status changes
+                if (this.currentVote) {
+                    const option = this.currentVote === 'a' ? '{{option_a}}' : '{{option_b}}';
+                    this.announceToScreenReader(`You voted for ${option}`);
+                }
+            }
+            
+            setupAnimations() {
+                // Intersection Observer for scroll animations
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('animate-fade-in');
+                        }
+                    });
+                });
+                
+                // Observe elements for animation
+                document.querySelectorAll('.vote-option, .voting-tip').forEach(el => {
+                    observer.observe(el);
+                });
+            }
+            
+            announceToScreenReader(message) {
+                const announcement = document.createElement('div');
+                announcement.setAttribute('aria-live', 'polite');
+                announcement.setAttribute('aria-atomic', 'true');
+                announcement.className = 'sr-only';
+                announcement.textContent = message;
+                
+                document.body.appendChild(announcement);
+                
+                setTimeout(() => {
+                    document.body.removeChild(announcement);
+                }, 1000);
+            }
+            
+            setupAudio() {
+                // Set volume for audio elements
+                if (this.catMeowSound) {
+                    this.catMeowSound.volume = 0.7;
+                }
+                if (this.dogHuhfSound) {
+                    this.dogHuhfSound.volume = 0.7;
+                }
+                
+                // Handle audio loading errors gracefully
+                [this.catMeowSound, this.dogHuhfSound].forEach(audio => {
+                    if (audio) {
+                        audio.addEventListener('error', (e) => {
+                            console.warn('Audio file could not be loaded:', e.target.src);
+                        });
+                        
+                        // Try to enable audio on first user interaction
+                        audio.addEventListener('canplaythrough', () => {
+                            console.log('Audio loaded successfully:', audio.src);
+                        });
+                    }
+                });
+                
+                // Enable audio context on first user interaction
+                this.audioEnabled = false;
+                const enableAudio = () => {
+                    if (!this.audioEnabled) {
+                        // Try to play and immediately pause to enable audio context
+                        [this.catMeowSound, this.dogHuhfSound].forEach(audio => {
+                            if (audio) {
+                                audio.play().then(() => {
+                                    audio.pause();
+                                    audio.currentTime = 0;
+                                }).catch(() => {
+                                    // Ignore errors during initialization
+                                });
+                            }
+                        });
+                        this.audioEnabled = true;
+                        console.log('Audio context enabled');
+                    }
+                };
+                
+                // Enable audio on any user interaction
+                ['click', 'touchstart', 'keydown'].forEach(event => {
+                    document.addEventListener(event, enableAudio, { once: true });
+                });
+            }
+            
+            playVoteSound(voteValue) {
+                // Check if sound is enabled
+                if (!this.soundEnabled) {
+                    return;
+                }
+                
+                // Throttle sounds to prevent rapid-fire playing on hover
+                const now = Date.now();
+                if (now - this.lastSoundTime[voteValue] < this.soundCooldown) {
+                    return; // Skip if too soon since last sound
+                }
+                this.lastSoundTime[voteValue] = now;
+                
+                try {
+                    let audioElement = null;
+                    let buttonElement = null;
+                    
+                    if (voteValue === 'a' && this.catMeowSound) {
+                        audioElement = this.catMeowSound;
+                        buttonElement = this.optionA;
+                        this.announceToScreenReader('Playing cat meow sound');
+                    } else if (voteValue === 'b' && this.dogHuhfSound) {
+                        audioElement = this.dogHuhfSound;
+                        buttonElement = this.optionB;
+                        this.announceToScreenReader('Playing dog huhf sound');
+                    }
+                    
+                    if (audioElement && buttonElement) {
+                        // Add visual feedback
+                        buttonElement.classList.add('playing-sound');
+                        
+                        // Reset audio to beginning and play
+                        audioElement.currentTime = 0;
+                        audioElement.play().catch(e => {
+                            console.warn('Could not play sound:', e);
+                        });
+                        
+                        // Remove visual feedback after animation
+                        setTimeout(() => {
+                            buttonElement.classList.remove('playing-sound');
+                        }, 600);
+                    }
+                } catch (error) {
+                    console.warn('Error playing vote sound:', error);
+                }
+            }
+        }
+        
+        // Screen reader only class
+        const style = document.createElement('style');
+        style.textContent = `
+            .sr-only {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new VotingApp();
+        });
+        
+        // Service Worker registration for PWA capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{{ url_for("service_worker") }}')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
     </script>
-    {% endif %}
-  </body>
+
+    <!-- Screen reader only styles -->
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</body>
 </html>

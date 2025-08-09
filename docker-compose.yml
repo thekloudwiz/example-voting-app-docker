@@ -1,44 +1,179 @@
 services:
+  # Voting App
   vote:
-    build: ./vote
-    command: python app.py
-    volumes:
-     - ./vote:/app
+    build:
+      context: ./vote
+      dockerfile: Dockerfile
+    container_name: vote
     ports:
       - "5000:80"
+    environment:
+      - OPTION_A=Cats
+      - OPTION_B=Dogs
+      - REDIS_HOST=redis
+      - SECRET_KEY=your-secret-key-change-in-production
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - voting-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vote.rule=Host(`vote.localhost`)"
+      - "traefik.http.services.vote.loadbalancer.server.port=80"
 
-  redis:
-    image: redis:alpine
-    ports: ["6379"]
-
-  worker:
-    build: ./worker
+  # Results App
+  result:
+    build:
+      context: ./result
+      dockerfile: Dockerfile
+    container_name: result
+    ports:
+      - "5001:80"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - NODE_ENV=production
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
+    networks:
+      - voting-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.result.rule=Host(`result.localhost`)"
+      - "traefik.http.services.result.loadbalancer.server.port=80"
 
-  db:
-    image: postgres:13
+  # Worker Service
+  worker:
+    build: ./worker
+    container_name: voting-worker
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - voting-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: voting-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - voting-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: voting-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    networks:
+      - voting-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
-  result:
-    build: ./result
-
-    volumes:
-      - ./result:/app
+  # Nginx Load Balancer (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: voting-nginx
     ports:
-      - "5001:80"
-      - "5858:5858"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      db:
-        condition: service_healthy
+      - vote
+      - result
+    networks:
+      - voting-network
+    restart: unless-stopped
+    profiles:
+      - with-nginx
+
+  # Redis Insight (for monitoring)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis-insight-data:/db
+    networks:
+      - voting-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # PostgreSQL Admin (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: voting-pgadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@voting.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - voting-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+networks:
+  voting-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-insight-data:
+    driver: local
+  pgadmin-data:
+    driver: local
