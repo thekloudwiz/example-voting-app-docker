@@ -12,8 +12,14 @@ services:
       - OPTION_B=Dogs
       - REDIS_HOST=redis
       - SECRET_KEY=your-secret-key-change-in-production
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     depends_on:
       redis:
+        condition: service_healthy
+      db:
         condition: service_healthy
     networks:
       - voting-network

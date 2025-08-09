@@ -500,13 +500,40 @@
     <script>
         // Modern Angular.js application
         angular.module('modernVotingResults', [])
-            .controller('ResultsController', ['$scope', function($scope) {
+            .controller('ResultsController', ['$scope', '$http', function($scope, $http) {
                 // Initialize data
                 $scope.aPercent = 50;
                 $scope.bPercent = 50;
                 $scope.total = 0;
                 $scope.aVotes = 0;
                 $scope.bVotes = 0;
+                
+                // Load initial data
+                function loadInitialData() {
+                    $http.get('/api/votes')
+                        .then(function(response) {
+                            const data = response.data;
+                            $scope.aVotes = data.votes?.a || 0;
+                            $scope.bVotes = data.votes?.b || 0;
+                            $scope.total = $scope.aVotes + $scope.bVotes;
+                            
+                            if ($scope.total > 0) {
+                                $scope.aPercent = ($scope.aVotes / $scope.total) * 100;
+                                $scope.bPercent = ($scope.bVotes / $scope.total) * 100;
+                            } else {
+                                $scope.aPercent = 50;
+                                $scope.bPercent = 50;
+                            }
+                            
+                            // Initialize chart with data
+                            setTimeout(initChart, 100);
+                        })
+                        .catch(function(error) {
+                            console.error('Error loading initial data:', error);
+                            // Initialize chart anyway
+                            setTimeout(initChart, 100);
+                        });
+                }
                 
                 // Chart instance
                 let chart = null;
@@ -641,9 +668,9 @@
                     });
                 }
                 
-                // Initialize chart when DOM is ready
+                // Initialize when DOM is ready
                 angular.element(document).ready(function() {
-                    setTimeout(initChart, 100);
+                    loadInitialData();
                 });
             }]);
         

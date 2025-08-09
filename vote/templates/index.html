@@ -150,13 +150,9 @@
                 this.catMeowSound = document.getElementById('catMeowSound');
                 this.dogHuhfSound = document.getElementById('dogHuhfSound');
                 
-                this.currentVote = '{{ vote }}';
+                this.currentVote = {% if vote %}'{{ vote }}'{% else %}null{% endif %};
                 this.isSubmitting = false;
                 this.soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // Default to true
-                
-                // Sound throttling to prevent rapid-fire sounds on hover
-                this.lastSoundTime = { a: 0, b: 0 };
-                this.soundCooldown = 1000; // 1 second cooldown between sounds
                 
                 this.init();
             }
@@ -175,30 +171,20 @@
                 // Form submission with enhanced UX
                 this.form.addEventListener('submit', (e) => this.handleVoteSubmission(e));
                 
-                // Button hover effects with sound
-                this.optionA.addEventListener('mouseenter', () => {
-                    this.handleButtonHover(this.optionA);
-                    this.playVoteSound('a'); // Play cat sound on hover
+                // Button click effects with sound
+                this.optionA.addEventListener('click', () => {
+                    this.playVoteSound('a'); // Play cat sound on click
                 });
                 
-                this.optionB.addEventListener('mouseenter', () => {
-                    this.handleButtonHover(this.optionB);
-                    this.playVoteSound('b'); // Play dog sound on hover
+                this.optionB.addEventListener('click', () => {
+                    this.playVoteSound('b'); // Play dog sound on click
                 });
                 
+                // Button hover effects (visual only)
+                this.optionA.addEventListener('mouseenter', () => this.handleButtonHover(this.optionA));
+                this.optionB.addEventListener('mouseenter', () => this.handleButtonHover(this.optionB));
                 this.optionA.addEventListener('mouseleave', () => this.handleButtonLeave(this.optionA));
                 this.optionB.addEventListener('mouseleave', () => this.handleButtonLeave(this.optionB));
-                
-                // Touch support for mobile devices
-                this.optionA.addEventListener('touchstart', () => {
-                    this.handleButtonHover(this.optionA);
-                    this.playVoteSound('a'); // Play cat sound on touch
-                }, { passive: true });
-                
-                this.optionB.addEventListener('touchstart', () => {
-                    this.handleButtonHover(this.optionB);
-                    this.playVoteSound('b'); // Play dog sound on touch
-                }, { passive: true });
                 
                 // Keyboard navigation
                 document.addEventListener('keydown', (e) => this.handleKeyboardNavigation(e));
@@ -425,13 +411,6 @@
                     return;
                 }
                 
-                // Throttle sounds to prevent rapid-fire playing on hover
-                const now = Date.now();
-                if (now - this.lastSoundTime[voteValue] < this.soundCooldown) {
-                    return; // Skip if too soon since last sound
-                }
-                this.lastSoundTime[voteValue] = now;
-                
                 try {
                     let audioElement = null;
                     let buttonElement = null;
@@ -450,16 +429,29 @@
                         // Add visual feedback
                         buttonElement.classList.add('playing-sound');
                         
-                        // Reset audio to beginning and play
-                        audioElement.currentTime = 0;
-                        audioElement.play().catch(e => {
-                            console.warn('Could not play sound:', e);
-                        });
+                        // Only reset if the audio is not currently playing
+                        if (audioElement.paused || audioElement.ended) {
+                            audioElement.currentTime = 0;
+                        }
                         
-                        // Remove visual feedback after animation
-                        setTimeout(() => {
+                        // Play the sound
+                        const playPromise = audioElement.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(e => {
+                                console.warn('Could not play sound:', e);
+                            });
+                        }
+                        
+                        // Remove visual feedback when sound ends or after max duration
+                        const removeVisualFeedback = () => {
                             buttonElement.classList.remove('playing-sound');
-                        }, 600);
+                        };
+                        
+                        // Listen for sound end
+                        audioElement.addEventListener('ended', removeVisualFeedback, { once: true });
+                        
+                        // Fallback timeout in case 'ended' event doesn't fire
+                        setTimeout(removeVisualFeedback, 3000); // 3 seconds max
                     }
                 } catch (error) {
                     console.warn('Error playing vote sound:', error);
