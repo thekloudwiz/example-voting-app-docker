@@ -109,11 +109,18 @@ namespace Worker
             var command = connection.CreateCommand();
             try
             {
-                command.CommandText = "INSERT INTO votes (vote, voter_id) VALUES (@vote, @voter_id)";
+                // Use UPSERT logic: INSERT or UPDATE if voter already exists
+                command.CommandText = @"
+                    INSERT INTO votes (vote, voter_id, timestamp, created_at) 
+                    VALUES (@vote, @voter_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (voter_id) 
+                    DO UPDATE SET 
+                        vote = EXCLUDED.vote, 
+                        timestamp = CURRENT_TIMESTAMP";
                 command.Parameters.AddWithValue("@vote", vote);
                 command.Parameters.AddWithValue("@voter_id", voterId);
                 command.ExecuteNonQuery();
-                Console.WriteLine($"Successfully inserted vote: {vote} from {voterId}");
+                Console.WriteLine($"Successfully upserted vote: {vote} from {voterId}");
             }
             catch (Exception ex)
             {

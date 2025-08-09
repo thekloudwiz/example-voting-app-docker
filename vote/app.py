@@ -156,7 +156,7 @@ def vote():
         option_a=option_a,
         option_b=option_b,
         hostname=hostname,
-        vote=vote,
+        vote=None,  # Don't pass vote back to template to prevent pre-selection
         error=error_message,
     ))
     resp.set_cookie('voter_id', voter_id, max_age=30*24*60*60)  # 30 days

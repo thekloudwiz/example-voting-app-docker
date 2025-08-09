@@ -234,6 +234,12 @@
                 const clickedButton = e.submitter;
                 const voteValue = clickedButton.value;
                 
+                // Update current vote immediately for UI feedback
+                this.currentVote = voteValue;
+                
+                // Show immediate feedback with checkmark
+                this.showVoteConfirmation(voteValue);
+                
                 // Add loading state
                 clickedButton.classList.add('loading');
                 this.showProgress(30);
@@ -243,6 +249,40 @@
                     this.showProgress(100);
                     // Form will submit naturally
                 }, 300);
+            }
+            
+            showVoteConfirmation(voteValue) {
+                const optionName = voteValue === 'a' ? '{{ option_a }}' : '{{ option_b }}';
+                const selectedButton = voteValue === 'a' ? this.optionA : this.optionB;
+                const unselectedButton = voteValue === 'a' ? this.optionB : this.optionA;
+                
+                // Update button states
+                selectedButton.classList.add('selected');
+                unselectedButton.classList.add('unselected');
+                selectedButton.setAttribute('aria-pressed', 'true');
+                unselectedButton.setAttribute('aria-pressed', 'false');
+                
+                // Show vote status with animated checkmark
+                if (this.voteStatus) {
+                    this.voteStatus.innerHTML = `
+                        <i class="fas fa-check-circle vote-checkmark" aria-hidden="true"></i>
+                        Your vote for <strong>${optionName}</strong> has been recorded!
+                    `;
+                    this.voteStatus.classList.remove('hidden');
+                    this.voteStatus.style.display = 'block';
+                    
+                    // Add success animation to the checkmark
+                    const checkmark = this.voteStatus.querySelector('.vote-checkmark');
+                    if (checkmark) {
+                        checkmark.style.animation = 'checkmarkPop 0.6s ease-out';
+                    }
+                }
+                
+                // Add success animation to button
+                selectedButton.classList.add('vote-success');
+                setTimeout(() => {
+                    selectedButton.classList.remove('vote-success');
+                }, 2000);
             }
             
             updateVoteState() {
@@ -257,13 +297,24 @@
                     selectedButton.setAttribute('aria-pressed', 'true');
                     unselectedButton.setAttribute('aria-pressed', 'false');
                     
-                    // Show vote status
+                    // Show vote status with dynamic content
                     if (this.voteStatus) {
+                        const optionName = this.currentVote === 'a' ? '{{ option_a }}' : '{{ option_b }}';
+                        this.voteStatus.innerHTML = `
+                            <i class="fas fa-check-circle vote-checkmark" aria-hidden="true"></i>
+                            Your vote for <strong>${optionName}</strong> has been recorded!
+                        `;
                         this.voteStatus.classList.remove('hidden');
                         this.voteStatus.style.display = 'block';
+                        
+                        // Add success animation to the checkmark
+                        const checkmark = this.voteStatus.querySelector('.vote-checkmark');
+                        if (checkmark) {
+                            checkmark.style.animation = 'checkmarkPop 0.6s ease-out';
+                        }
                     }
                     
-                    // Add success animation
+                    // Add success animation to button
                     selectedButton.classList.add('vote-success');
                     setTimeout(() => {
                         selectedButton.classList.remove('vote-success');
