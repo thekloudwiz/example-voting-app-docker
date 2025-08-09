@@ -1,21 +1,14 @@
+version: '3.8'
+
 services:
-  # Voting App
   vote:
-    build:
-      context: ./vote
-      dockerfile: Dockerfile
-    container_name: vote
+    build: ./vote
     ports:
       - "5000:80"
     environment:
       - OPTION_A=Cats
       - OPTION_B=Dogs
       - REDIS_HOST=redis
-      - SECRET_KEY=your-secret-key-change-in-production
-      - POSTGRES_HOST=db
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
     depends_on:
       redis:
         condition: service_healthy
@@ -24,17 +17,15 @@ services:
     networks:
       - voting-network
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.vote.rule=Host(`vote.localhost`)"
-      - "traefik.http.services.vote.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Results App
   result:
-    build:
-      context: ./result
-      dockerfile: Dockerfile
-    container_name: result
+    build: ./result
     ports:
       - "5001:80"
     environment:
@@ -44,26 +35,28 @@ services:
       - POSTGRES_PASSWORD=postgres
       - NODE_ENV=production
     depends_on:
+      redis:
+        condition: service_healthy
       db:
         condition: service_healthy
     networks:
       - voting-network
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.result.rule=Host(`result.localhost`)"
-      - "traefik.http.services.result.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Worker Service
   worker:
     build: ./worker
-    container_name: voting-worker
     environment:
-      - REDIS_HOST=redis
       - POSTGRES_HOST=db
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+      - REDIS_HOST=redis
     depends_on:
       redis:
         condition: service_healthy
@@ -73,10 +66,8 @@ services:
       - voting-network
     restart: unless-stopped
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: voting-redis
     ports:
       - "6379:6379"
     volumes:
@@ -86,23 +77,19 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # PostgreSQL Database
   db:
     image: postgres:15-alpine
-    container_name: voting-postgres
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db-init:/docker-entrypoint-initdb.d
@@ -111,21 +98,18 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # Nginx Load Balancer (optional)
+  # Load balancer (optional)
   nginx:
     image: nginx:alpine
-    container_name: voting-nginx
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - vote
       - result
@@ -135,10 +119,9 @@ services:
     profiles:
       - with-nginx
 
-  # Redis Insight (for monitoring)
+  # Monitoring services (optional)
   redis-insight:
     image: redislabs/redisinsight:latest
-    container_name: redis-insight
     ports:
       - "8001:8001"
     volumes:
@@ -149,16 +132,13 @@ services:
     profiles:
       - monitoring
 
-  # PostgreSQL Admin (pgAdmin)
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: voting-pgadmin
     ports:
       - "8080:80"
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@voting.local
       - PGADMIN_DEFAULT_PASSWORD=admin
-      - PGADMIN_CONFIG_SERVER_MODE=False
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     networks:
@@ -170,6 +150,7 @@ services:
 networks:
   voting-network:
     driver: bridge
+    # Let Docker automatically assign a non-conflicting subnet
 
 volumes:
   redis-data:
