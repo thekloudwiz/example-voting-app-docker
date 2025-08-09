@@ -560,9 +560,20 @@
                     }]
                 };
                 
-                // Socket.io connection with error handling
+                // Socket.io connection with enhanced error handling for HTTP deployment
                 try {
-                    const socket = io();
+                    const socket = io({
+                        transports: ['polling', 'websocket'], // Try polling first, then websocket
+                        upgrade: true,
+                        rememberUpgrade: false,
+                        timeout: 20000,
+                        forceNew: true,
+                        reconnection: true,
+                        reconnectionDelay: 1000,
+                        reconnectionAttempts: 5,
+                        maxReconnectionAttempts: 5,
+                        randomizationFactor: 0.5
+                    });
                     
                     socket.on('connect', function() {
                         console.log('Connected to Socket.IO server');

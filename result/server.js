@@ -20,11 +20,22 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: false
+  },
+  transports: ['polling', 'websocket'], // Allow both polling and websocket
+  allowEIO3: true, // Allow Engine.IO v3 clients
+  pingTimeout: 60000, // Increase ping timeout
+  pingInterval: 25000, // Increase ping interval
+  upgradeTimeout: 30000, // Increase upgrade timeout
+  maxHttpBufferSize: 1e6, // 1MB buffer size
+  allowRequest: (req, callback) => {
+    // Allow all requests for HTTP deployment
+    callback(null, true);
   }
 });
 
-// Security middleware
+// Security middleware - Updated for HTTP deployment
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,10 +44,27 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://ajax.googleapis.com", "https://cdn.socket.io"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "ws:", "wss:"]
+      connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"]
     }
-  }
+  },
+  crossOriginOpenerPolicy: false, // Disable COOP for HTTP deployment
+  crossOriginResourcePolicy: false, // Disable CORP for HTTP deployment
+  crossOriginEmbedderPolicy: false // Disable COEP for HTTP deployment
 }));
+
+// Additional headers for HTTP deployment
+app.use((req, res, next) => {
+  // Remove problematic headers for HTTP deployment
+  res.removeHeader('Cross-Origin-Opener-Policy');
+  res.removeHeader('Origin-Agent-Cluster');
+  
+  // Add permissive CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  next();
+});
 
 // Performance middleware
 app.use(compression());
