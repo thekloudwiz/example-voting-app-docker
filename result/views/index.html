@@ -7,6 +7,10 @@
     <meta name="keywords" content="voting results, real-time, charts, analytics">
     <meta name="author" content="Modern Voting App">
     
+    <!-- HTTP deployment meta tags -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="no-referrer-when-downgrade">
+    
     <title>Voting Results - Real-time Analytics</title>
     
     <!-- Preconnect to external resources -->
@@ -508,9 +512,16 @@
                 $scope.aVotes = 0;
                 $scope.bVotes = 0;
                 
-                // Load initial data
+                // Load initial data with explicit HTTP protocol
                 function loadInitialData() {
-                    $http.get('/api/votes')
+                    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                    const host = window.location.hostname;
+                    const port = window.location.port || '5001';
+                    const apiUrl = `${protocol}//${host}:${port}/api/votes`;
+                    
+                    console.log('Loading initial data from:', apiUrl);
+                    
+                    $http.get(apiUrl)
                         .then(function(response) {
                             const data = response.data;
                             $scope.aVotes = data.current?.a || 0;
@@ -560,19 +571,29 @@
                     }]
                 };
                 
-                // Socket.io connection with enhanced error handling for HTTP deployment
+                // Socket.io connection with explicit HTTP protocol for deployment
                 try {
-                    const socket = io({
-                        transports: ['polling', 'websocket'], // Try polling first, then websocket
-                        upgrade: true,
-                        rememberUpgrade: false,
+                    // Force HTTP protocol and explicit server URL
+                    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                    const host = window.location.hostname;
+                    const port = window.location.port || '5001';
+                    const serverUrl = `${protocol}//${host}:${port}`;
+                    
+                    console.log('Connecting to Socket.IO server:', serverUrl);
+                    
+                    const socket = io(serverUrl, {
+                        transports: ['polling'], // Use polling only for HTTP deployment
+                        upgrade: false, // Disable websocket upgrade for HTTP
                         timeout: 20000,
                         forceNew: true,
                         reconnection: true,
-                        reconnectionDelay: 1000,
-                        reconnectionAttempts: 5,
-                        maxReconnectionAttempts: 5,
-                        randomizationFactor: 0.5
+                        reconnectionDelay: 2000,
+                        reconnectionAttempts: 3,
+                        maxReconnectionAttempts: 3,
+                        randomizationFactor: 0.5,
+                        autoConnect: true,
+                        secure: false, // Explicitly disable SSL
+                        rejectUnauthorized: false // Allow self-signed certificates
                     });
                     
                     socket.on('connect', function() {
@@ -617,7 +638,12 @@
                 // Fallback polling function
                 function startPolling() {
                     setInterval(function() {
-                        $http.get('/api/votes')
+                        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                        const host = window.location.hostname;
+                        const port = window.location.port || '5001';
+                        const apiUrl = `${protocol}//${host}:${port}/api/votes`;
+                        
+                        $http.get(apiUrl)
                             .then(function(response) {
                                 const data = response.data;
                                 $scope.aVotes = data.current?.a || 0;

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voting Results - Simple HTTP Version</title>
+    
+    <!-- Simple HTTP-only version without complex security headers -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .vote-count { font-size: 2em; margin: 10px 0; }
+        .option { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .option-a { background: #e3f2fd; border-left: 5px solid #2196f3; }
+        .option-b { background: #f3e5f5; border-left: 5px solid #9c27b0; }
+        .percentage { font-weight: bold; color: #666; }
+        .status { margin: 20px 0; padding: 10px; background: #e8f5e8; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗳️ Voting Results</h1>
+        
+        <div id="status" class="status">Loading...</div>
+        
+        <div class="option option-a">
+            <h2>🐱 Cats</h2>
+            <div class="vote-count" id="cats-count">0</div>
+            <div class="percentage" id="cats-percent">0%</div>
+        </div>
+        
+        <div class="option option-b">
+            <h2>🐶 Dogs</h2>
+            <div class="vote-count" id="dogs-count">0</div>
+            <div class="percentage" id="dogs-percent">0%</div>
+        </div>
+        
+        <div class="status">
+            <strong>Total Votes:</strong> <span id="total-votes">0</span>
+        </div>
+    </div>
+
+    <script>
+        // Simple HTTP-only JavaScript without Socket.IO
+        let updateInterval;
+        
+        function updateResults() {
+            // Use relative URL to avoid protocol issues
+            fetch('/api/votes')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const catsVotes = data.current?.a || 0;
+                    const dogsVotes = data.current?.b || 0;
+                    const total = catsVotes + dogsVotes;
+                    
+                    document.getElementById('cats-count').textContent = catsVotes;
+                    document.getElementById('dogs-count').textContent = dogsVotes;
+                    document.getElementById('total-votes').textContent = total;
+                    
+                    if (total > 0) {
+                        const catsPercent = Math.round((catsVotes / total) * 100);
+                        const dogsPercent = Math.round((dogsVotes / total) * 100);
+                        document.getElementById('cats-percent').textContent = catsPercent + '%';
+                        document.getElementById('dogs-percent').textContent = dogsPercent + '%';
+                    } else {
+                        document.getElementById('cats-percent').textContent = '0%';
+                        document.getElementById('dogs-percent').textContent = '0%';
+                    }
+                    
+                    document.getElementById('status').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+                    document.getElementById('status').className = 'status';
+                })
+                .catch(error => {
+                    console.error('Error fetching results:', error);
+                    document.getElementById('status').textContent = 'Error loading results: ' + error.message;
+                    document.getElementById('status').className = 'status error';
+                });
+        }
+        
+        // Initial load
+        updateResults();
+        
+        // Update every 2 seconds
+        updateInterval = setInterval(updateResults, 2000);
+        
+        // Update when page becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                updateResults();
+            }
+        });
+    </script>
+</body>
+</html>
